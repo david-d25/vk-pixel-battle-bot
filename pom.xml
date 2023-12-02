@@ -1,0 +1,14 @@
+<project>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>space.davids_digital.vk_pixel_battle_bot</groupId>
+    <artifactId>vk_pixel_battle_bot</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>backend</module>
+        <module>bot</module>
+        <module>docker</module>
+    </modules>
+</project>
