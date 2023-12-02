@@ -41,12 +41,12 @@
 
     <dependencies>
         <dependency>
-            <groupId>space.davids_digital.vk_gpt_chatbot</groupId>
+            <groupId>space.davids_digital.vk_pixel_battle_bot</groupId>
             <artifactId>bot</artifactId>
             <version>1.0.0</version>
         </dependency>
         <dependency>
-            <groupId>space.davids_digital.vk_gpt_chatbot</groupId>
+            <groupId>space.davids_digital.vk_pixel_battle_bot</groupId>
             <artifactId>backend</artifactId>
             <version>1.0.0</version>
         </dependency>
