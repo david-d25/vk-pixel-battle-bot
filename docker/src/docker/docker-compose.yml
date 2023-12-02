@@ -12,8 +12,6 @@ services:
       - DB_USER
   bot:
     build: bot
-    ports:
-      - "${BOT_PORT}:9005"
     environment:
       - BACKEND_URL=backend:8080
       - DB_NAME
