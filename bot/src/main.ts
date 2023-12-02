@@ -19,6 +19,7 @@ import StopCommand from "./command/StopCommand";
 import BoardService from "./service/BoardService";
 import AppCeosOrmService from "./orm/AppCeosOrmService";
 import {ImageCommand} from "./command/ImageCommand";
+import DisableCommand from "./command/DisableCommand";
 
 function getAppVersion() {
     const defaultVersion = "(unknown version)";
@@ -91,6 +92,7 @@ async function ready() {
         context.botService.addCommand(triggerWord, new StartCommand(context, triggerWord));
         context.botService.addCommand(triggerWord, new StopCommand(context, triggerWord));
         context.botService.addCommand(triggerWord, new ImageCommand(context, triggerWord));
+        context.botService.addCommand(triggerWord, new DisableCommand(context));
     }
 
     context.botService.addCommand("draw", new SetPixelCommand(context, "draw"));
