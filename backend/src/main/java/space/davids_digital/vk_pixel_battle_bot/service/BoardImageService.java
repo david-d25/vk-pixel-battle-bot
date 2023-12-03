@@ -11,7 +11,7 @@ import java.awt.image.BufferedImage;
 
 @Service
 public class BoardImageService {
-    private static final Font LABEL_FONT = new Font("Arial", Font.PLAIN, 16);
+    private static final Font LABEL_FONT = new Font("Arial", Font.PLAIN, 24);
     private final BoardDrawLogOrmService boardDrawLogOrmService;
     private final ChatSettingsOrmService chatSettingsOrmService;
     private static final int PADDING = 75;
@@ -28,10 +28,10 @@ public class BoardImageService {
     public BufferedImage getBoardImage(long peerId, boolean grid) {
         var chatSettings = chatSettingsOrmService.getChatSettingsByPeerId(peerId);
         if (chatSettings == null) {
-            return drawErrorMessage("[!] Settings not found");
+            return createErrorMessageImage("[!] Settings not found");
         }
         if (chatSettings.getBoardWidth() < 0 || chatSettings.getBoardHeight() < 0) {
-            return drawErrorMessage("[!] Invalid board size");
+            return createErrorMessageImage("[!] Invalid board size");
         }
 
         var boardDrawLogs = boardDrawLogOrmService.getDrawLogsByPeerId(peerId);
@@ -46,69 +46,165 @@ public class BoardImageService {
         graphics.setColor(Color.WHITE);
         graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
         if (grid) {
-            graphics.translate(PADDING, PADDING);
-        }
-        graphics.scale(PIXEL_SIZE, PIXEL_SIZE);
-        if (grid) {
-            drawFreePixelDots(graphics, chatSettings.getBoardWidth(), chatSettings.getBoardHeight());
+            var drawWidth = imageWidth - PADDING * 2;
+            var drawHeight = imageHeight - PADDING * 2;
+            var gridMinX = (int) -Math.ceil(chatSettings.getBoardWidth()/2.0) + 1;
+            var gridMaxX = (int) Math.floor(chatSettings.getBoardWidth()/2.0) + 1;
+            var gridMinY = (int) -Math.ceil(chatSettings.getBoardHeight()/2.0) + 1;
+            var gridMaxY = (int) Math.floor(chatSettings.getBoardHeight()/2.0) + 1;
+            drawFreePixelDots(
+                    graphics,
+                    PADDING,
+                    PADDING,
+                    drawWidth,
+                    drawHeight,
+                    gridMinX,
+                    gridMaxX,
+                    gridMinY,
+                    gridMaxY
+            );
+            drawAxisLabels(
+                    graphics,
+                    PADDING,
+                    PADDING,
+                    drawWidth,
+                    drawHeight,
+                    gridMinX,
+                    gridMaxX,
+                    gridMinY,
+                    gridMaxY
+            );
         }
         for (var boardDrawLog : boardDrawLogs) {
+
+            var transform = AffineTransform.getTranslateInstance(0, 0);
+            if (grid) {
+                transform.translate(PADDING, PADDING);
+            }
+            transform.scale(PIXEL_SIZE, PIXEL_SIZE);
+            graphics.setTransform(transform);
             graphics.setColor(boardDrawLog.getColor());
-            graphics.fillRect((int) boardDrawLog.getX(), (int) boardDrawLog.getY(), 1, 1);
-        }
-        graphics.setTransform(AffineTransform.getTranslateInstance(0, 0));
-        if (grid) {
-            drawPixelGrid(graphics, chatSettings.getBoardWidth(), chatSettings.getBoardHeight());
+            graphics.fillRect(
+                    (int) (boardDrawLog.getX() + Math.ceil(chatSettings.getBoardWidth()/2.0) - 1),
+                    (int) (-boardDrawLog.getY() + Math.floor(chatSettings.getBoardHeight()/2.0)),
+                    1, 1
+            );
         }
         graphics.dispose();
         return image;
     }
 
-    private void drawPixelGrid(Graphics2D graphics, int width, int height) {
-        graphics.translate(PADDING, PADDING);
-        graphics.scale(PIXEL_SIZE, PIXEL_SIZE);
-        graphics.setColor(new Color(0f, 0f, 0f, 0.025f));
-        graphics.setStroke(new BasicStroke(0.1f));
-        for (int x = 0; x <= width; x++) {
-            graphics.drawLine(x, 0, x, height);
+    private void drawAxisLabels(
+            Graphics2D graphics,
+            double drawX,
+            double drawY,
+            double drawWidth,
+            double drawHeight,
+            int gridMinX,
+            int gridMaxX,
+            int gridMinY,
+            int gridMaxY
+    ) {
+        if (gridMinX >= gridMaxX || gridMinY >= gridMaxY) {
+            return;
         }
-        for (int y = 0; y <= height; y++) {
-            graphics.drawLine(0, y, width, y);
-        }
-        graphics.setColor(new Color(0f, 0f, 0f, 0.05f));
-        graphics.setStroke(new BasicStroke(0.2f));
-        for (int x = 0; x <= width; x += 10) {
-            graphics.drawLine(x, 0, x, height);
-        }
-        for (int y = 0; y <= height; y += 10) {
-            graphics.drawLine(0, y, width, y);
-        }
-        graphics.setColor(new Color(0f, 0f, 0f, 0.1f));
-        graphics.setFont(LABEL_FONT.deriveFont(1.5f));
-        for (int x = 0; x < width; x += 10) {
-            var metrics = graphics.getFontMetrics();
+        var gridWidth = gridMaxX - gridMinX;
+        var gridHeight = gridMaxY - gridMinY;
+        graphics.setTransform(AffineTransform.getTranslateInstance(0, 0));
+
+        graphics.setFont(LABEL_FONT.deriveFont(24.0f));
+        var metrics = graphics.getFontMetrics();
+
+        graphics.setColor(new Color(0f, 0f, 0.5f, 0.2f));
+        for (int columnX = 0; columnX < gridWidth; columnX++) {
+            var x = gridMinX + columnX;
+            if (x % 5 != 0 || x == 0)
+                continue;
             var text = String.valueOf(x);
-            graphics.drawString(text, x + 0.1f, -0.5f);
-            graphics.drawString(text, x + 0.1f, height + metrics.getDescent() + 0.5f);
+            if (x > 0)
+                text = "+" + text;
+            var textX = (float) (drawX + drawWidth * (columnX + 0.5)/gridWidth - metrics.stringWidth(text)/2.0);
+            var textY = (float) (drawY + drawHeight + metrics.getHeight() + 0.5);
+            graphics.drawString(text, textX, textY);
         }
-        for (int y = 0; y < height; y += 10) {
-            var metrics = graphics.getFontMetrics();
+        graphics.setColor(new Color(0.5f, 0f, 0f, 0.2f));
+        for (int rowY = 0; rowY < gridHeight; rowY++) {
+            var y = gridMinY + rowY;
+            if (y % 5 != 0 || y == 0)
+                continue;
             var text = String.valueOf(y);
-            graphics.drawString(text, -metrics.stringWidth(text) - 0.5f, y + metrics.getDescent() + 0.1f);
-            graphics.drawString(text, width + 0.5f, y + metrics.getDescent() + 0.1f);
+            if (y > 0)
+                text = "+" + text;
+            var textX = (float) (drawX - metrics.stringWidth(text));
+            var textY = (float) (drawY + drawHeight - drawHeight * (rowY + 0.5)/gridHeight + metrics.getAscent()/2.5);
+            graphics.drawString(text, textX, textY);
         }
+        graphics.setColor(new Color(0f, 0f, 0.6f, 0.4f));
+        var xTextY = (float) (drawY + drawHeight - drawHeight * (-gridMinY + 0.5)/gridHeight + metrics.getAscent()/2.5);
+        graphics.drawString(
+                "-X",
+                (float) (drawX - metrics.stringWidth("-X")),
+                xTextY
+        );
+        graphics.drawString(
+                "+X",
+                (float) (drawX + drawWidth),
+                xTextY
+        );
+        graphics.setColor(new Color(0.6f, 0f, 0f, 0.4f));
+        double yTextXBase = drawX + drawWidth * (-gridMinX + 0.5) / gridWidth;
+        graphics.drawString(
+                "-Y",
+                (float) (yTextXBase - metrics.stringWidth("-Y")/2.0),
+                (float) (drawY + drawHeight + metrics.getHeight())
+        );
+        graphics.drawString(
+                "+Y",
+                (float) (yTextXBase - metrics.stringWidth("+Y")/2.0),
+                (float) drawY
+        );
     }
 
-    private void drawFreePixelDots(Graphics2D graphics2D, int width, int height) {
-        graphics2D.setColor(new Color(0f, 0f, 0f, 0.05f));
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                graphics2D.fill(new Arc2D.Double(x + 0.4, y + 0.4, 0.2, 0.2, 0, 360, Arc2D.OPEN));
+    private void drawFreePixelDots(
+            Graphics2D graphics,
+            double drawX,
+            double drawY,
+            double drawWidth,
+            double drawHeight,
+            int gridMinX,
+            int gridMaxX,
+            int gridMinY,
+            int gridMaxY
+    ) {
+        if (gridMinX >= gridMaxX || gridMinY >= gridMaxY) {
+            return;
+        }
+        var gridWidth = gridMaxX - gridMinX;
+        var gridHeight = gridMaxY - gridMinY;
+        var transform = AffineTransform.getTranslateInstance(drawX, drawY);
+        transform.scale(drawWidth/gridWidth, drawHeight/gridHeight);
+        graphics.setTransform(transform);
+
+        for (int columnX = 0; columnX < gridWidth; columnX++) {
+            var x = gridMinX + columnX;
+            for (int rowY = 0; rowY < gridHeight; rowY++) {
+                var y = gridMinY + rowY;
+                graphics.setColor(new Color(0f, 0f, 0f, 0.05f));
+                if (x == 0 && y == 0) {
+                    graphics.setColor(new Color(0.5f, 0f, 0.5f, 0.25f));
+                } else if (x == 0) {
+                    graphics.setColor(new Color(0.5f, 0f, 0f, 0.25f));
+                } else if (y == 0) {
+                    graphics.setColor(new Color(0f, 0f, 0.5f, 0.25f));
+                } else if (x % 5 == 0 || y % 5 == 0) {
+                    graphics.setColor(new Color(0f, 0f, 0f, 0.25f));
+                }
+                graphics.fill(new Arc2D.Double(columnX + 0.4, gridHeight - rowY - 0.6, 0.2, 0.2, 0, 360, Arc2D.OPEN));
             }
         }
     }
 
-    private BufferedImage drawErrorMessage(String message) {
+    private BufferedImage createErrorMessageImage(String message) {
         var image = new BufferedImage(250, 100, BufferedImage.TYPE_INT_RGB);
         var graphics = image.createGraphics();
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

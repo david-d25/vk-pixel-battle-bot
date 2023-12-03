@@ -61,7 +61,11 @@ export default class SetPixelCommand extends Command {
                 return;
             }
         }
-        if (x < 0 || y < 0 || x >= chatSettings.boardWidth || y >= chatSettings.boardHeight) {
+        const minX = -Math.ceil(chatSettings.boardWidth/2.0) + 1;
+        const maxX = Math.floor(chatSettings.boardWidth/2.0) + 1;
+        const minY = -Math.ceil(chatSettings.boardHeight/2.0) + 1;
+        const maxY = Math.floor(chatSettings.boardHeight/2.0) + 1;
+        if (x < minX || y < minY || x >= maxX || y >= maxY) {
             await vkMessagesService.send(message.peerId, `За пределами доски нельзя красить (а так хочется...)`);
             return;
         }
